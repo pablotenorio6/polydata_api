@@ -46,12 +46,15 @@ logging.info(f"DB_USER: {os.getenv('DB_USER')}")
 logging.info(f"DB_PASSWORD: {os.getenv('DB_PASSWORD')}")
 
 # Database configuration
+DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
+
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": int(os.getenv("DB_PORT", "5432")),
     "database": os.getenv("DB_NAME", "polymarket"),
     "user": os.getenv("DB_USER", "postgres"),
     "password": os.getenv("DB_PASSWORD", "postgres"),
+    "server_settings": {"search_path": DB_SCHEMA},
 }
 
 # Global connection pool

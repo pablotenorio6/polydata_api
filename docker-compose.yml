@@ -7,6 +7,7 @@ services:
       - DB_HOST=${DB_HOST:-host.docker.internal}
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-polymarket}
+      - DB_SCHEMA=${DB_SCHEMA:-public}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
     extra_hosts:

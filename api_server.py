@@ -131,22 +131,42 @@ async def save_market(data: MarketData):
     
     async with db_pool.acquire() as conn:
         async with conn.transaction():
-            # Insert or update market
-            market_id = await conn.fetchval("""
-                INSERT INTO markets (condition_id, question, start_time, end_time, up_token_id, down_token_id, winner)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                ON CONFLICT (condition_id) 
-                DO UPDATE SET winner = EXCLUDED.winner
-                RETURNING id
-            """, 
-                data.condition_id,
-                data.question,
-                data.start_time,
-                data.end_time,
-                data.up_token_id,
-                data.down_token_id,
-                data.winner
+            # Try to get existing market first
+            market_id = await conn.fetchval(
+                "SELECT id FROM polymarket.markets WHERE condition_id = $1",
+                data.condition_id
             )
+            
+            if market_id:
+                # Update existing market
+                await conn.execute("""
+                    UPDATE polymarket.markets SET winner = $1 WHERE id = $2
+                """, data.winner, market_id)
+                logger.info(f"Updated existing market id={market_id}")
+            else:
+                # Insert new market
+                market_id = await conn.fetchval("""
+                    INSERT INTO polymarket.markets (condition_id, question, start_time, end_time, up_token_id, down_token_id, winner)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING id
+                """, 
+                    data.condition_id,
+                    data.question,
+                    data.start_time,
+                    data.end_time,
+                    data.up_token_id,
+                    data.down_token_id,
+                    data.winner
+                )
+                logger.info(f"Inserted new market id={market_id}")
+            
+            # Verify market exists before inserting snapshots
+            exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM polymarket.markets WHERE id = $1)",
+                market_id
+            )
+            if not exists:
+                raise HTTPException(status_code=500, detail=f"Market {market_id} not found after insert")
             
             # Insert price snapshots
             snapshots_saved = 0
@@ -158,7 +178,7 @@ async def save_market(data: MarketData):
                 ]
                 
                 await conn.executemany("""
-                    INSERT INTO price_snapshots (market_id, timestamp, up_price, down_price)
+                    INSERT INTO polymarket.price_snapshots (market_id, timestamp, up_price, down_price)
                     VALUES ($1, $2, $3, $4)
                     ON CONFLICT (market_id, timestamp) DO NOTHING
                 """, values)

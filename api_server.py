@@ -66,6 +66,7 @@ class PriceSnapshot(BaseModel):
     timestamp: datetime
     up_price: float
     down_price: float
+    crypto_price: Optional[float] = None
 
 
 class MarketData(BaseModel):
@@ -173,13 +174,13 @@ async def save_market(data: MarketData):
             if data.snapshots:
                 # Prepare batch insert
                 values = [
-                    (market_id, s.timestamp, s.up_price, s.down_price)
+                    (market_id, s.timestamp, s.up_price, s.down_price, s.crypto_price)
                     for s in data.snapshots
                 ]
                 
                 await conn.executemany("""
-                    INSERT INTO polymarket.price_snapshots (market_id, timestamp, up_price, down_price)
-                    VALUES ($1, $2, $3, $4)
+                    INSERT INTO polymarket.price_snapshots (market_id, timestamp, up_price, down_price, crypto_price)
+                    VALUES ($1, $2, $3, $4, $5)
                     ON CONFLICT (market_id, timestamp) DO NOTHING
                 """, values)
                 

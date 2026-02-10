@@ -5,6 +5,7 @@ Run: uvicorn api_server:app --host 0.0.0.0 --port 8000
 """
 
 import os
+import asyncio
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -98,9 +99,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         logger.info("Server will start but database operations will fail")
-    
+
+    # Start Telegram notifications if configured
+    notification_task = None
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if db_pool and bot_token and chat_id:
+        from notifications import TelegramNotifier, NotificationPoller
+        notifier = TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
+        poller = NotificationPoller(db_pool, notifier)
+        notification_task = asyncio.create_task(poller.run())
+        logger.info("Telegram notifications enabled")
+
     yield
-    
+
+    if notification_task:
+        notification_task.cancel()
+        try:
+            await notification_task
+        except asyncio.CancelledError:
+            pass
+        await notifier.close()
+
     if db_pool:
         await db_pool.close()
         logger.info("Database connection closed")

@@ -10,6 +10,8 @@ services:
       - DB_SCHEMA=${DB_SCHEMA:-public}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
